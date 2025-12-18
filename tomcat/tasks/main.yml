@@ -1,0 +1,43 @@
+---
+# tasks file for tomcat
+- name: Install Java
+  apt:
+    name: "{{ java_package }}"
+    state: present
+    update_cache: yes
+
+- name: Create Tomcat directory
+  file:
+    path: "{{ tomcat_home }}"
+    state: directory
+
+- name: Download Tomcat 10
+  get_url:
+    url: https://archive.apache.org/dist/tomcat/tomcat-10/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz
+    dest: /tmp/tomcat.tar.gz
+
+- name: Extract Tomcat
+  unarchive:
+    src: /tmp/tomcat.tar.gz
+    dest: "{{ tomcat_home }}"
+    remote_src: yes
+    extra_opts: [--strip-components=1]
+
+- name: Create Tomcat systemd service
+  copy:
+    dest: /etc/systemd/system/tomcat.service
+    content: |
+      [Unit]
+      Description=Apache Tomcat 10
+      After=network.target
+
+      [Service]
+      Type=forking
+      ExecStart={{ tomcat_home }}/bin/startup.sh
+      ExecStop={{ tomcat_home }}/bin/shutdown.sh
+
+      [Install]
+      WantedBy=multi-user.target
+  notify:
+    - Reload systemd
+    - Restart Tomcat
